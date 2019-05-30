@@ -6,6 +6,7 @@ import com.runemate.game.api.hybrid.local.hud.interfaces.Bank;
 import com.runemate.game.api.hybrid.local.hud.interfaces.Inventory;
 import com.runemate.game.api.hybrid.location.Coordinate;
 import com.runemate.game.api.hybrid.location.navigation.Traversal;
+import com.runemate.game.api.hybrid.location.navigation.basic.BresenhamPath;
 import com.runemate.game.api.hybrid.location.navigation.cognizant.RegionPath;
 import com.runemate.game.api.hybrid.location.navigation.web.WebPath;
 import com.runemate.game.api.hybrid.queries.results.LocatableEntityQueryResults;
@@ -14,14 +15,17 @@ import com.runemate.game.api.hybrid.region.GameObjects;
 import com.runemate.game.api.hybrid.region.Players;
 import com.runemate.game.api.script.Execution;
 import com.runemate.game.api.script.framework.LoopingBot;
+import com.runemate.game.api.script.framework.listeners.SkillListener;
+import com.runemate.game.api.script.framework.listeners.events.SkillEvent;
 
-public class testbotMain extends LoopingBot {
+import java.util.EventListener;
+
+public class testbotMain extends LoopingBot implements SkillListener {
 
     private static final int STATE_GOING_TO_SKILLING = 0;
     private static final int STATE_SKILLING = 1;
     private static final int STATE_GOING_TO_BANK = 2;
     private static final int STATE_BANKING = 3;
-
 
     private static final int BANK_SUB_STATE_OPEN = 0;
     private static final int BANK_SUB_STATE_DEPOSIT = 1;
@@ -34,8 +38,9 @@ public class testbotMain extends LoopingBot {
     private static final Coordinate BANK_COORDINATES = new Coordinate(3183, 3443, 0);
     private static final Coordinate SKILLING_COORDINATES = new Coordinate(3137, 3431, 0);
 
-    private static final String TREE_TO_CUT = "Willow";
-    private static final String ITEM_TO_DROP = "Willow logs";
+    private static final String TREE_TO_CUT = "Oak";
+    private static final String ITEM_TO_DROP = "Oak logs";
+    private static final int RESET_AFTER_CICLES = 30;
 
     private int currentState;
     private int currentBankState;
@@ -43,6 +48,7 @@ public class testbotMain extends LoopingBot {
 
     private GameObject currentSpot;
     private int inventoryThreshold;
+    private int ciclesToReset;
 
     private boolean moveTowardsCoordinate(Coordinate c){
 
@@ -65,8 +71,14 @@ public class testbotMain extends LoopingBot {
             return false;
         }
 
+        getLogger().debug("WebPath failed. Fallback to Bresenham.");
+        BresenhamPath bp = BresenhamPath.buildTo(c);
+        if(bp != null){
+            bp.step();
+            return false;
+        }
 
-        getLogger().debug("WebPath failed. Walking to random spot.");
+        getLogger().debug("BresenhamPath failed. Walking to random spot.");
 
         int currentX = p.getPosition().getX();
         int currentY = p.getPosition().getY();
@@ -77,11 +89,11 @@ public class testbotMain extends LoopingBot {
         int deltaX = 0;
         int deltaY = 0;
 
-        if(currentX > targetX) { deltaX = -5; }
-        else{ deltaX = 5; }
+        if(currentX > targetX) { deltaX = -(int)Math.round(Math.random() * 5); }
+        else{ deltaX = (int)Math.round(Math.random() * 5); }
 
-        if(currentY > targetY) { deltaY = -5; }
-        else{ deltaY = 5; }
+        if(currentY > targetY) { deltaY = -(int)Math.round(Math.random() * 5); }
+        else{ deltaY = (int)Math.round(Math.random() * 5); }
 
         RegionPath fbrp = RegionPath.buildTo(new Coordinate(currentX + deltaX, currentY + deltaY, c.getPlane()));
         if(fbrp != null){
@@ -94,14 +106,21 @@ public class testbotMain extends LoopingBot {
     @Override
     public void onLoop()
     {
-        dropingLoop();
+
+
+
+        bankingLoop();
+
+
     }
 
     @Override
     public void onStart(String... arguments) {
         System.out.println("Running...");
 
-        initDropingLoop();
+        getEventDispatcher().addListener(this);
+
+        initBankingLoop();
 
 
     }
@@ -110,7 +129,7 @@ public class testbotMain extends LoopingBot {
 
         setLoopDelay(600, 900);
 
-        currentState = STATE_GOING_TO_SKILLING;
+        currentState = STATE_GOING_TO_BANK;
         currentBankState = BANK_SUB_STATE_OPEN;
         currentSkillingState = SKILLING_SUB_STATE_STOPED;
 
@@ -148,7 +167,7 @@ public class testbotMain extends LoopingBot {
                         }
                         break;
                     case BANK_SUB_STATE_DEPOSIT:
-                        if(Bank.depositInventory()) {
+                        if(Bank.deposit(ITEM_TO_DROP, 27)) {
                             currentBankState = BANK_SUB_STATE_CLOSE;
                         }
                         break;
@@ -188,11 +207,11 @@ public class testbotMain extends LoopingBot {
 
     }
 
-
     private void initDropingLoop(){
         setLoopDelay(600, 900);
         currentSkillingState = SKILLING_SUB_STATE_STOPED;
         inventoryThreshold = -1;
+        ciclesToReset = RESET_AFTER_CICLES;
     }
     private void dropingLoop() {
 
@@ -200,6 +219,7 @@ public class testbotMain extends LoopingBot {
         switch (currentSkillingState){
             case SKILLING_SUB_STATE_STOPED:
                 getLogger().info("STATE : STOPED");
+                ciclesToReset = RESET_AFTER_CICLES;
                 if(hasFoundSpot()){
                     currentSkillingState = SKILLING_SUB_STATE_WORKING;
                 }
@@ -223,6 +243,8 @@ public class testbotMain extends LoopingBot {
                 break;
         }
 
+
+
         if(inventoryThreshold == -1){
             inventoryThreshold = (int)Math.round(Math.random() * 28);
             getLogger().debug("Threshold was -1. Now is " + inventoryThreshold);
@@ -231,6 +253,14 @@ public class testbotMain extends LoopingBot {
         getLogger().debug("Checking inventory");
         if(Inventory.getEmptySlots() <= inventoryThreshold) {
             currentSkillingState = SKILLING_SUB_STATE_DROPPING;
+        }
+
+        if(ciclesToReset == 0){
+            getLogger().info("Resetting...");
+            currentSkillingState = SKILLING_SUB_STATE_STOPED;
+        }
+        else {
+            ciclesToReset -= 1;
         }
 
 
@@ -243,5 +273,12 @@ public class testbotMain extends LoopingBot {
     private boolean isSpotActive(){
         return currentSpot.isVisible();
     }
+
+
+    @Override
+    public void onLevelUp(SkillEvent event) {
+        currentSkillingState = SKILLING_SUB_STATE_STOPED;
+    }
+
 
 }

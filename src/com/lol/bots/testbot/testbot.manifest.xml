@@ -1,21 +1,21 @@
 <manifest>
 
     <main-class>com.lol.bots.testbot.testbotMain</main-class>
-    <name>testbot</name>
-    <tag-line>Picks up shit</tag-line>
-    <description>Picks up shit</description>
+    <name>SimpleWC</name>
+    <tag-line>Cuts down willow</tag-line>
+    <description>This bot will absolutely DESTROY any willow tree on sight</description>
     <version>1.0.0</version>
     <compatibility>
         <game-type>OSRS</game-type>
     </compatibility>
     <categories>
-        <category>MONEYMAKING</category>
+        <category>WOODCUTTING</category>
     </categories>
-    <internal-id>testbot</internal-id>
+    <internal-id>SingleWC</internal-id>
     <hidden>false</hidden>
     <access>public</access>
     <tags>
-        <tag>money making</tag>
+        <tag>woodcutting</tag>
     </tags>
     <resources>
     </resources>
