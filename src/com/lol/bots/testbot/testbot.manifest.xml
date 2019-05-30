@@ -1,0 +1,24 @@
+<manifest>
+
+    <main-class>com.lol.bots.testbot.testbotMain</main-class>
+    <name>testbot</name>
+    <tag-line>Picks up shit</tag-line>
+    <description>Picks up shit</description>
+    <version>1.0.0</version>
+    <compatibility>
+        <game-type>OSRS</game-type>
+    </compatibility>
+    <categories>
+        <category>MONEYMAKING</category>
+    </categories>
+    <internal-id>testbot</internal-id>
+    <hidden>false</hidden>
+    <access>public</access>
+    <tags>
+        <tag>money making</tag>
+    </tags>
+    <resources>
+    </resources>
+    <open-source>true</open-source>
+
+</manifest>
